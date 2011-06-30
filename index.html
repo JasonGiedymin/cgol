@@ -1,0 +1,103 @@
+<!doctype html>
+<head>
+    <title>Conway's Game Of Life in CoffeeScript By Jason Giedymin</title>
+
+    <style type="text/css">
+        body {
+            font-family: courier, serif;
+            background: -webkit-gradient(linear, left top, left bottom, from(#fff), to(#cbccc8)) fixed;
+            background: -moz-linear-gradient(top,  #fff,  #cbccc8) fixed;
+            width: 100%;
+        }
+
+        #info {
+            text-align: center;
+        }
+
+        #simulation {
+            margin: auto;
+            background-color: lightblue;
+            height: 300px;
+            width: 600px;
+    
+            border-style: solid;
+            border-width: 5px;
+            border-color: black;
+
+            -moz-box-shadow: gray 2px 2px 10px 0;
+            -webkit-box-shadow: gray 2px 2px 10px 0;
+            -o-box-shadow: gray 2px 2px 10px 0;
+            box-shadow: gray 2px 2px 10px 0;
+
+            z-index: 100;
+        }
+
+        /*Cell sizes*/
+        .massive {width: 10px; height: 10px;}
+        .huge {width: 6px; height: 6px;}
+        .big {width: 4px; height: 4px;}
+        .small {width: 2px; height: 2px;}
+
+        /*Cell arrangement*/
+        .first { clear: both;}
+        .cell { float:left; /*border: solid 1px #ccf;*/}
+
+        /*Cell colors*/
+        .on { background-color: green; }
+        .off { background-color: lightblue; }
+
+        /*Toggle*/
+        #toggle {
+            clear: both;
+        }
+        
+    </style>
+</head>
+<body>
+    <div id="author-info">
+        Author: Jason Giedymin <br>
+        Email: jasong at apache dot org <br>
+        Blog: <a href="http://jasongiedymin.com">http://jasongiedymin.com</a></br>
+    </div>
+
+    <br>
+
+    <div id="demo">
+        <div id="demo-description">
+            Description: A Conway Game of life experiment with <a href="http://jashkenas.github.com/coffee-script/">CoffeeScript JS</a>. Works best with V8 (Chrome) but should work with SpiderMonkey & Carakan (though slightly slower). Also check out the <a href="docs/cgol.html">annotated source</a>. This app has no other dependencies.
+        </div>
+        
+        <br>
+        
+        <div id="info">
+            <div id="time">[0]fps, Step:[0], World[0], Flux[0]</div>
+            <div id="controls">
+                <button id="toggle" class="stop" onClick="window.toggleApp();">Start</button>
+                <button id="step" class="step" onClick="window.stepApp();">Step</button>
+                <button id="random" class="random" onClick="window.randomSetup();">Random</button>
+                <!-- TODO:
+                <button id="data" class="data" onClick="window.dataSetup();">Data</button>
+                <button id="reset" class="reset" onClick="window.resetApp();">Reset</button>
+                -->
+            </div>
+        </div>
+    
+        <div id="simulation"></div>
+        <canvas id="canvas" width="200" height="200"></canvas>
+    </div>
+
+    <script type="text/javascript" src="js/cgol.js"></script>
+
+    <script type="text/javascript">
+      var _gaq = _gaq || [];
+      _gaq.push(['_setAccount', 'UA-8200340-10']);
+      _gaq.push(['_trackPageview']);
+    
+      (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+      })();
+    </script>
+</body>
+</html>
