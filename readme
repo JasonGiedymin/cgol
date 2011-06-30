@@ -1,0 +1,6 @@
+Description: CGOL is a Coffeescript implementation of Conway's Game of Life
+for the browser.
+
+Author: Jason Giedymin
+
+Notes: See docs/cgol.html for the annotated source.

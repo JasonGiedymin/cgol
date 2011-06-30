@@ -1,0 +1,349 @@
+<!DOCTYPE html>  <html> <head>   <title>cgol.coffee</title>   <meta http-equiv="content-type" content="text/html; charset=UTF-8">   <link rel="stylesheet" media="all" href="docco.css" /> </head> <body>   <div id="container">     <div id="background"></div>          <table cellpadding="0" cellspacing="0">       <thead>         <tr>           <th class="docs">             <h1>               cgol.coffee             </h1>           </th>           <th class="code">           </th>         </tr>       </thead>       <tbody>                               <tr id="section-1">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-1">&#182;</a>               </div>               <h2>CGOL</h2>
+
+<p>Author: Jason Giedymin</p>
+
+<p>Description:
+CGOL is a Coffeescript implementation of Conway's Game of Life for the browser
+and based on the <a href="http://www.hanpau.com/Game3.htm">work</a> of
+<a href="http://www.hanpau.com">Paul Hanlon</a>. I found his implementation to
+be simple and fast but uses HTML <code>&lt;table&gt;</code>'s instead of <code>&lt;div&gt;</code>'s or a <code>&lt;canvas&gt;</code>.</p>
+
+<p>My particular implementation comes with two display rendering techniques:</p>
+
+<ol>
+<li>HTML based <code>&lt;div&gt;</code>'s</li>
+<li>HTML5 based canvas pixel manipulation via the <code>image data</code> array.</li>
+</ol>
+
+<p>The code has a number of toggles/features:</p>
+
+<ol>
+<li>Both Height &amp; Width size specifications.</li>
+<li>Generation speed in ms.</li>
+<li>Generation limit - allows the setting of the upper limit of generations.</li>
+<li>Real-time viewing - allows viewing steps in real-time.</li>
+<li>Manual mode - a mode that relies on the user to 'step' through.</li>
+<li>Cycle mode - a mode which allows cycling if populations are stagnant or
+the generation limit has been reached.</li>
+<li>Stagnation mode - allows calculating of stagnant populations</li>
+<li>Cell size - <code>small</code>, <code>big</code>, <code>huge</code>, <code>massive</code> cell sizes. This only
+applies to the HTML <code>&lt;div&gt;</code> based rendering method.</li>
+</ol>
+
+<p>Requirements:
+A browser with JS capability such as Chrome.</p>
+
+<h2>Notes</h2>
+
+<p>This application is not particularly a cleanly coded example.
+Much was strung together from an hour here and hour there with a mobile
+device. My initial focus was to 'get something done' first and to then
+start refactoring it. Hopefully with time work can be done to clean
+the code base up because it needs it.</p>             </td>             <td class="code">               <div class="highlight"><pre></pre></div>             </td>           </tr>                               <tr id="section-2">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-2">&#182;</a>               </div>               <h2>Utilities</h2>
+
+<p>This is a jQuery like utility function.</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="nv">$ = </span><span class="nf">(element_id) -&gt;</span>
+      <span class="k">return</span> <span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="nx">element_id</span><span class="p">)</span></pre></div>             </td>           </tr>                               <tr id="section-3">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-3">&#182;</a>               </div>               <h2>Classes</h2>
+
+<p>A generic Queue class made especially more usefull as it calculates
+a trailing population (tail) flux. We can use the flux to determine
+if a population is stagnant.</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="k">class</span> <span class="nx">Queue</span></pre></div>             </td>           </tr>                               <tr id="section-4">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-4">&#182;</a>               </div>               <p>What was I thinking with this class???</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="nv">constructor: </span><span class="nf">(@_stagnant_generation_limit=10, @_stagnant_population_flux=.01, @_silence=no) -&gt;</span>
+        <span class="vi">@_queue = </span><span class="p">[]</span>
+    
+    <span class="nv">clear: </span><span class="o">-&gt;</span>
+        <span class="vi">@_queue = </span><span class="p">[]</span>
+    
+    <span class="nv">getSize: </span><span class="o">-&gt;</span>
+        <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">@_queue</span><span class="p">.</span><span class="nx">length</span><span class="p">)</span>
+    
+    <span class="nv">push: </span><span class="nf">(value) -&gt;</span>
+        <span class="nx">@_queue</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="nx">value</span><span class="p">)</span>
+    
+    <span class="nv">getLast: </span><span class="nf">() -&gt;</span>
+        <span class="k">return</span> <span class="nx">@_queue</span><span class="p">[</span><span class="nx">@_queue</span><span class="p">.</span><span class="nx">length</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    
+    <span class="nv">getData: </span><span class="o">-&gt;</span>
+        <span class="k">return</span> <span class="nx">@_queue</span>
+    </pre></div>             </td>           </tr>                               <tr id="section-5">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-5">&#182;</a>               </div>               <p>This function gets the trailing snapshot (tail).</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="nv">getSnapshot: </span><span class="nf">(snapshot_size = @_stagnant_generation_limit) -&gt;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">100</span><span class="p">]</span> <span class="k">if</span> <span class="nx">@_queue</span><span class="p">.</span><span class="nx">length</span> <span class="o">&lt;=</span> <span class="mi">2</span>
+
+        <span class="nv">_queue_size = </span><span class="nx">@_queue</span><span class="p">.</span><span class="nx">length</span> <span class="o">-</span> <span class="mi">1</span>
+        
+        <span class="k">if</span> <span class="p">(</span><span class="nx">_queue_size</span> <span class="o">&gt;=</span> <span class="nx">snapshot_size</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nx">@_queue</span><span class="p">.</span><span class="nx">slice</span><span class="p">(</span><span class="nx">_queue_size</span> <span class="o">-</span> <span class="nx">snapshot_size</span><span class="p">,</span> <span class="nx">_queue_size</span><span class="p">)</span> 
+        <span class="k">else</span>
+            <span class="k">return</span> <span class="nx">@_queue</span>
+
+    <span class="nv">getFlux: </span><span class="nf">() -&gt;</span>
+        <span class="nv">compareNumbers = </span><span class="nf">(a, b) -&gt;</span>
+            <span class="k">return</span> <span class="nx">a</span> <span class="o">-</span> <span class="nx">b</span><span class="p">;</span>
+        
+        <span class="nv">_population_data = </span><span class="nx">@getSnapshot</span><span class="p">()</span>
+
+        <span class="nx">_population_data</span><span class="p">.</span><span class="nx">sort</span><span class="p">(</span><span class="nx">compareNumbers</span><span class="p">)</span>
+        <span class="nv">_max_index = </span><span class="nx">_population_data</span><span class="p">.</span><span class="nx">length</span><span class="o">-</span><span class="mi">1</span>
+        <span class="nv">_min_population = </span><span class="nx">_population_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="nv">_max_population = </span><span class="nx">_population_data</span><span class="p">[</span><span class="nx">_max_index</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nx">_min_population</span> <span class="o">is</span> <span class="mi">0</span> <span class="o">or</span> <span class="nx">_max_population</span> <span class="o">is</span> <span class="mi">0</span>
+            <span class="k">return</span> <span class="mi">0</span>
+
+        <span class="nv">_curr_flux = </span><span class="mi">1</span><span class="o">-</span><span class="p">(</span><span class="nx">_min_population</span><span class="err">/_max_population)</span>
+        <span class="nx">_curr_flux</span><span class="p">.</span><span class="nx">toFixed</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+            
+    <span class="nv">isPopulationStagnant: </span><span class="nf">(_max_flux = @_stagnant_population_flux) -&gt;</span>
+        <span class="nv">_curr_flux = </span><span class="nx">@getFlux</span><span class="p">()</span></pre></div>             </td>           </tr>                               <tr id="section-6">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-6">&#182;</a>               </div>               <p>console.log("#{<em>min</em>population}, #{<em>max</em>population} = #{1-(<em>min</em>population/<em>max</em>population)}")
+console.log(<em>population</em>data)</p>             </td>             <td class="code">               <div class="highlight"><pre>        
+        <span class="k">if</span> <span class="nx">_curr_flux</span> <span class="o">&lt;=</span> <span class="nx">_max_flux</span> <span class="o">and</span> <span class="o">!</span><span class="nx">@_silence</span>
+            <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">&quot;Stagnant flux: #{_curr_flux}.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">true</span>
+        <span class="k">else</span> <span class="kc">false</span></pre></div>             </td>           </tr>                               <tr id="section-7">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-7">&#182;</a>               </div>               <p>Basic CGOL class.</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="k">class</span> <span class="nx">CgolBasic</span>
+    <span class="nv">constructor: </span><span class="nf">(@_rows = 50, @_cols = 100, @_interval_limit = 5000, @_cycle=yes) -&gt;</span></pre></div>             </td>           </tr>                               <tr id="section-8">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-8">&#182;</a>               </div>               <p>[@<em>rows, @</em>cols] = [50, 100]</p>             </td>             <td class="code">               <div class="highlight"><pre></pre></div>             </td>           </tr>                               <tr id="section-9">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-9">&#182;</a>               </div>               <h2>Toggles</h2>             </td>             <td class="code">               <div class="highlight"><pre>        <span class="vi">@_manual = </span><span class="kc">no</span>
+        <span class="vi">@_realtime_view = </span><span class="kc">yes</span>
+        <span class="vi">@_calculate_stagnation = </span><span class="kc">yes</span>
+        <span class="vi">@_speed = </span><span class="mi">1</span> <span class="c1"># SetInterval @_speed in ms</span>
+        <span class="vi">@_cell_size = </span><span class="s2">&quot;huge&quot;</span></pre></div>             </td>           </tr>                               <tr id="section-10">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-10">&#182;</a>               </div>               <h2>Vars - don't touch</h2>             </td>             <td class="code">               <div class="highlight"><pre>        <span class="vi">@_world_table = </span><span class="p">[]</span>
+        <span class="vi">@_world_table_last = </span><span class="p">[]</span>
+        <span class="vi">@_worlds_with_life = </span><span class="p">[]</span>
+
+        <span class="vi">@_is_running = </span><span class="kc">no</span>
+        <span class="vi">@_worlds_tested = </span><span class="mi">0</span>
+        <span class="vi">@_interval = </span><span class="mi">0</span> <span class="c1"># Current steps</span>
+        <span class="vi">@_timer = </span><span class="kc">null</span> <span class="c1"># Stored @_interval</span>
+        <span class="vi">@_stagnant_generation_limit = </span><span class="mi">10</span> <span class="c1"># num of generations we consider no population change to be stagnant</span>
+        <span class="vi">@_stagnant_population_flux = </span><span class="p">.</span><span class="mi">011</span> <span class="c1"># 5% or less is considered stagnant</span>
+        <span class="vi">@_populations = </span><span class="k">new</span> <span class="nx">Queue</span><span class="p">(</span><span class="nx">@_stagnant_generation_limit</span><span class="p">,</span> <span class="nx">@_stagnant_population_flux</span><span class="p">,</span> <span class="nx">@_manual</span><span class="p">)</span>
+
+        <span class="vi">@_context = </span><span class="nx">canvas</span><span class="p">.</span><span class="nx">getContext</span> <span class="s1">&#39;2d&#39;</span> <span class="k">if</span> <span class="nx">canvas</span><span class="o">?</span>
+        <span class="vi">@_image = </span><span class="nx">@_context</span><span class="p">.</span><span class="nx">createImageData</span> <span class="nx">@_cols</span><span class="p">,</span> <span class="nx">@_rows</span>
+        <span class="vi">@_pixels = </span><span class="nx">@_image</span><span class="p">.</span><span class="nx">data</span></pre></div>             </td>           </tr>                               <tr id="section-11">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-11">&#182;</a>               </div>               <p>Sets up the world of nodes first by writing HTML code.</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="nv">setupWorld: </span><span class="nf">() -&gt;</span>
+        <span class="nv">string_buffer = </span><span class="p">[]</span>
+
+        <span class="k">for</span> <span class="nx">y</span> <span class="k">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">...</span><span class="nx">@_rows</span><span class="p">]</span>
+            <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">y</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="nx">string_buffer</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="s1">&#39;&lt;tr&gt;&#39;</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="nx">x</span> <span class="k">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">...</span><span class="nx">@_cols</span><span class="p">]</span>
+                <span class="nx">string_buffer</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="s1">&#39;&lt;div id=&quot;c&#39;</span><span class="o">+</span><span class="nx">y</span><span class="o">+</span><span class="s1">&#39;_&#39;</span><span class="o">+</span><span class="nx">x</span><span class="o">+</span><span class="s1">&#39;&quot; class=&quot;cell off #{@_cell_size}&quot;&gt;&lt;/div&gt;&#39;</span><span class="p">)</span>
+                <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">y</span><span class="p">][</span><span class="nx">x</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+            
+            <span class="nx">string_buffer</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="s1">&#39;&lt;/div&gt;&#39;</span><span class="p">)</span>
+
+        <span class="nx">$</span><span class="p">(</span><span class="s2">&quot;simulation&quot;</span><span class="p">).</span><span class="nv">innerHTML = </span><span class="nx">string_buffer</span><span class="p">.</span><span class="nx">join</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+  </pre></div>             </td>           </tr>                               <tr id="section-12">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-12">&#182;</a>               </div>               <p>The basic rules of life here. Oh this needs refactoring...</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="nv">calculate_world: </span><span class="nf">() -&gt;</span>
+        <span class="nv">start_date = </span><span class="k">new</span> <span class="nb">Date</span><span class="p">()</span>
+        <span class="nv">c = </span><span class="mi">0</span>
+        <span class="nv">_current_population = </span><span class="mi">0</span>
+
+        <span class="nv">z = </span><span class="p">[]</span>
+        <span class="nv">t = </span><span class="nx">@_rows</span><span class="o">-</span><span class="mi">1</span>
+
+        <span class="k">for</span> <span class="nx">y</span> <span class="k">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">...</span><span class="nx">@_rows</span><span class="p">]</span>
+            <span class="nx">z</span><span class="p">[</span><span class="nx">y</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="nv">b = </span><span class="k">if</span> <span class="p">(</span><span class="nx">y</span> <span class="o">==</span> <span class="p">(</span><span class="nx">@_rows</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span> <span class="k">then</span> <span class="mi">0</span> <span class="k">else</span> <span class="nx">y</span><span class="o">+</span><span class="mi">1</span>
+            <span class="nv">l = </span><span class="nx">@_cols</span><span class="o">-</span><span class="mi">1</span>
+
+            <span class="k">for</span> <span class="nx">x</span> <span class="k">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">...</span><span class="nx">@_cols</span><span class="p">]</span>
+                <span class="nv">cell = </span><span class="nx">$</span><span class="p">(</span><span class="s2">&quot;c&quot;</span><span class="o">+</span><span class="nx">y</span><span class="o">+</span><span class="s1">&#39;_&#39;</span><span class="o">+</span><span class="nx">x</span><span class="p">)</span>
+                <span class="nv">r = </span><span class="k">if</span> <span class="p">(</span><span class="nx">x</span> <span class="o">==</span> <span class="nx">@_cols</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="k">then</span> <span class="mi">0</span> <span class="k">else</span> <span class="nx">x</span><span class="o">+</span><span class="mi">1</span>
+
+                <span class="nv">c = </span><span class="nx">@_world_table</span><span class="p">[</span><span class="nx">t</span><span class="p">][</span><span class="nx">l</span><span class="p">]</span> <span class="o">+</span> <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">t</span><span class="p">][</span><span class="nx">x</span><span class="p">]</span> <span class="o">+</span> <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">t</span><span class="p">][</span><span class="nx">r</span><span class="p">]</span>  <span class="o">+</span> <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">y</span><span class="p">][</span><span class="nx">l</span><span class="p">]</span> <span class="o">+</span> <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">y</span><span class="p">][</span><span class="nx">r</span><span class="p">]</span> <span class="o">+</span> <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">b</span><span class="p">][</span><span class="nx">l</span><span class="p">]</span> <span class="o">+</span> <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">b</span><span class="p">][</span><span class="nx">x</span><span class="p">]</span> <span class="o">+</span> <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">b</span><span class="p">][</span><span class="nx">r</span><span class="p">]</span>
+
+                <span class="k">switch</span> <span class="nx">c</span>
+                    <span class="k">when</span> <span class="mi">3</span>
+                        <span class="nx">z</span><span class="p">[</span><span class="nx">y</span><span class="p">][</span><span class="nx">x</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                        <span class="nx">@drawNode</span><span class="p">(</span><span class="nx">y</span><span class="p">,</span> <span class="nx">x</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="nx">@_realtime_view</span>
+                        <span class="nx">_current_population</span><span class="o">++</span>
+                    <span class="k">when</span> <span class="mi">2</span>
+                        <span class="nx">z</span><span class="p">[</span><span class="nx">y</span><span class="p">][</span><span class="nx">x</span><span class="p">]</span> <span class="o">=</span> <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">y</span><span class="p">][</span><span class="nx">x</span><span class="p">]</span>
+                    <span class="k">else</span>
+                        <span class="nx">@drawNode</span><span class="p">(</span><span class="nx">y</span><span class="p">,</span> <span class="nx">x</span><span class="p">,</span> <span class="s2">&quot;off&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="nx">@_realtime_view</span>
+                        <span class="nx">z</span><span class="p">[</span><span class="nx">y</span><span class="p">][</span><span class="nx">x</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+                <span class="nv">l = </span><span class="nx">x</span>
+            <span class="nv">t = </span><span class="nx">y</span>
+
+        <span class="nx">@_populations</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="nx">_current_population</span><span class="p">)</span>
+
+        <span class="vi">@_world_table = </span><span class="nx">z</span>
+
+        <span class="nx">@_interval</span><span class="o">++</span>
+
+        <span class="k">if</span> <span class="nx">@_interval</span> <span class="o">&gt;=</span> <span class="nx">@_interval_limit</span> <span class="c1"># passed the @_interval limit</span>
+            <span class="k">if</span> <span class="o">not</span> <span class="nx">@_cycle</span>
+                <span class="nx">clearInterval</span><span class="p">(</span><span class="nx">@_timer</span><span class="p">)</span>
+            <span class="k">else</span>
+                <span class="nx">@_worlds_tested</span><span class="o">++</span>
+                <span class="vi">@_interval = </span><span class="mi">0</span>
+                <span class="nx">@_populations</span><span class="p">.</span><span class="nx">clear</span><span class="p">()</span>
+                <span class="nx">@clearWorld</span><span class="p">()</span>
+                <span class="nx">@doPattern</span><span class="p">()</span>
+                <span class="nx">@drawCurrentWorld</span><span class="p">()</span>
+            
+            <span class="nx">@printStatus</span><span class="p">(</span><span class="nx">start_date</span><span class="p">)</span>
+
+        <span class="k">else</span> <span class="c1"># keep on going</span>
+            <span class="k">if</span> <span class="o">not</span> <span class="nx">@_realtime_view</span>
+                <span class="k">if</span> <span class="p">(</span><span class="nx">@_interval</span> <span class="sr">/ 100) % 2 is 0 or (@_interval /</span> <span class="mi">100</span><span class="p">)</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">is</span> <span class="mi">1</span>
+                    <span class="nx">@printStatus</span><span class="p">(</span><span class="nx">start_date</span><span class="p">)</span>
+                    <span class="nx">@drawCurrentWorld</span><span class="p">()</span>
+            <span class="k">else</span>
+                <span class="nx">@printStatus</span><span class="p">(</span><span class="nx">start_date</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="nx">@_populations</span><span class="p">.</span><span class="nx">isPopulationStagnant</span><span class="p">(</span><span class="nx">@_stagnant_population_flux</span><span class="p">)</span> <span class="o">and</span> <span class="nx">@_calculate_stagnation</span>
+                <span class="k">if</span> <span class="o">!</span><span class="nx">@_manual</span> <span class="o">and</span> <span class="nx">@_cycle</span>
+                    <span class="nx">@_worlds_tested</span><span class="o">++</span>
+                    <span class="nx">@clearWorld</span><span class="p">()</span>
+                    <span class="vi">@_interval = </span><span class="mi">0</span>
+                    <span class="nx">@_populations</span><span class="p">.</span><span class="nx">clear</span><span class="p">()</span>
+                    <span class="nx">@doPattern</span><span class="p">()</span>
+                    <span class="nx">@drawCurrentWorld</span><span class="p">()</span></pre></div>             </td>           </tr>                               <tr id="section-13">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-13">&#182;</a>               </div>               <p>Prints the current status and step of the world.</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="nv">printStatus: </span><span class="nf">(start_date) -&gt;</span>
+        <span class="nx">$</span><span class="p">(</span><span class="s2">&quot;time&quot;</span><span class="p">).</span><span class="nv">innerHTML = </span><span class="s2">&quot;[#{Math.round(1000/(new Date()-start_date))}]fps, Step:[#{@_interval}], Pop:[#{@_populations.getLast()}], World:[#{@_worlds_tested}], Flux:[#{@_populations.getFlux()}].&quot;</span></pre></div>             </td>           </tr>                               <tr id="section-14">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-14">&#182;</a>               </div>               <p>Create some patterns so we can work with them and see what happens.</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="nv">doPattern: </span><span class="nf">(pattern=&quot;rand&quot;) -&gt;</span>
+        <span class="k">switch</span> <span class="nx">pattern</span>
+            <span class="k">when</span> <span class="s2">&quot;rand&quot;</span>
+                <span class="k">for</span> <span class="nx">y</span> <span class="k">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">...</span><span class="nx">@_rows</span><span class="p">]</span>
+                    <span class="k">for</span> <span class="nx">x</span> <span class="k">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">...</span><span class="nx">@_cols</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="nb">Math</span><span class="p">.</span><span class="nx">random</span><span class="p">()</span> <span class="o">&gt;</span> <span class="nb">Math</span><span class="p">.</span><span class="nx">random</span><span class="p">()</span>
+                            <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">y</span><span class="p">][</span><span class="nx">x</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+            <span class="k">when</span> <span class="s2">&quot;oscillator&quot;</span></pre></div>             </td>           </tr>                               <tr id="section-15">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-15">&#182;</a>               </div>               <p>Oscillator (should move)</p>             </td>             <td class="code">               <div class="highlight"><pre>                <span class="nx">@_world_table</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="nx">@_world_table</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="nx">@_world_table</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+            <span class="k">when</span> <span class="s2">&quot;beehive&quot;</span></pre></div>             </td>           </tr>                               <tr id="section-16">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-16">&#182;</a>               </div>               <p>Beehive (should be static)</p>             </td>             <td class="code">               <div class="highlight"><pre>                <span class="nx">@_world_table</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="nx">@_world_table</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="nx">@_world_table</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="nx">@_world_table</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="nx">@_world_table</span><span class="p">[</span><span class="mi">4</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="nx">@_world_table</span><span class="p">[</span><span class="mi">4</span><span class="p">][</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+            <span class="k">when</span> <span class="s2">&quot;toad&quot;</span></pre></div>             </td>           </tr>                               <tr id="section-17">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-17">&#182;</a>               </div>               <p>Toad</p>             </td>             <td class="code">               <div class="highlight"><pre>                <span class="nx">@_world_table</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="nx">@_world_table</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="nx">@_world_table</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="nx">@_world_table</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="nx">@_world_table</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="nx">@_world_table</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+            
+            <span class="k">when</span> <span class="s2">&quot;data&quot;</span>
+                <span class="p">[</span><span class="nx">start_x</span><span class="p">,</span> <span class="nx">start_y</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">25</span><span class="p">,</span> <span class="mi">25</span><span class="p">]</span>
+
+                <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">start_y</span> <span class="o">+</span> <span class="mi">2</span><span class="p">][</span><span class="nx">start_x</span> <span class="o">+</span> <span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">start_y</span> <span class="o">+</span> <span class="mi">2</span><span class="p">][</span><span class="nx">start_x</span> <span class="o">+</span> <span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">start_y</span> <span class="o">+</span> <span class="mi">2</span><span class="p">][</span><span class="nx">start_x</span> <span class="o">+</span> <span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">start_y</span> <span class="o">+</span> <span class="mi">3</span><span class="p">][</span><span class="nx">start_x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">start_y</span> <span class="o">+</span> <span class="mi">3</span><span class="p">][</span><span class="nx">start_x</span> <span class="o">+</span> <span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">start_y</span> <span class="o">+</span> <span class="mi">3</span><span class="p">][</span><span class="nx">start_x</span> <span class="o">+</span> <span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="vi">@_world_table_last = </span><span class="nx">@_world_table</span></pre></div>             </td>           </tr>                               <tr id="section-18">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-18">&#182;</a>               </div>               <p>Wipe out and reset the world.</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="nv">clearWorld: </span><span class="nf">() -&gt;</span>
+        <span class="k">for</span> <span class="nx">y</span> <span class="k">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">...</span><span class="nx">@_rows</span><span class="p">]</span>
+            <span class="k">for</span> <span class="nx">x</span> <span class="k">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">...</span><span class="nx">@_cols</span><span class="p">]</span>
+                <span class="nv">cell = </span><span class="nx">$</span><span class="p">(</span><span class="s2">&quot;c&quot;</span><span class="o">+</span><span class="nx">y</span><span class="o">+</span><span class="s1">&#39;_&#39;</span><span class="o">+</span><span class="nx">x</span><span class="p">)</span>
+                <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">y</span><span class="p">][</span><span class="nx">x</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span></pre></div>             </td>           </tr>                               <tr id="section-19">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-19">&#182;</a>               </div>               <p>Draw the current state of the world.</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="nv">drawCurrentWorld: </span><span class="nf">() -&gt;</span>
+        <span class="nv">_current_population = </span><span class="mi">0</span>
+
+        <span class="k">for</span> <span class="nx">y</span> <span class="k">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">...</span><span class="nx">@_rows</span><span class="p">]</span>
+            <span class="k">for</span> <span class="nx">x</span> <span class="k">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">...</span><span class="nx">@_cols</span><span class="p">]</span>
+                <span class="nv">cell = </span><span class="nx">$</span><span class="p">(</span><span class="s2">&quot;c&quot;</span><span class="o">+</span><span class="nx">y</span><span class="o">+</span><span class="s1">&#39;_&#39;</span><span class="o">+</span><span class="nx">x</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">y</span><span class="p">][</span><span class="nx">x</span><span class="p">]</span> <span class="o">is</span> <span class="mi">1</span>
+                    <span class="nx">@drawNode</span><span class="p">(</span><span class="nx">y</span><span class="p">,</span> <span class="nx">x</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">)</span>
+                    <span class="nx">_current_population</span><span class="o">++</span>
+                <span class="k">else</span>
+                     <span class="nx">@drawNode</span><span class="p">(</span><span class="nx">y</span><span class="p">,</span> <span class="nx">x</span><span class="p">,</span> <span class="s2">&quot;off&quot;</span><span class="p">)</span>
+        
+        <span class="nx">@_populations</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="nx">_current_population</span><span class="p">)</span></pre></div>             </td>           </tr>                               <tr id="section-20">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-20">&#182;</a>               </div>               <p>Draw a particular node with a set size.</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="nv">drawNode: </span><span class="nf">(y=0, x=0, state=&quot;off&quot;, size=@_cell_size, node_css_class=&quot;cell&quot;, node_css_first=&quot;first&quot;, view_type=&quot;html&quot;) -&gt;</span>
+        <span class="k">switch</span> <span class="nx">view_type</span>
+            <span class="k">when</span> <span class="s2">&quot;html&quot;</span></pre></div>             </td>           </tr>                               <tr id="section-21">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-21">&#182;</a>               </div>               <p>Uses HTML <code>&lt;div&gt;</code> objects and css class selectors to animate
+'off' and 'on' states. Fast! Much faster than my previous
+<code>&lt;table&gt;</code> setup.</p>             </td>             <td class="code">               <div class="highlight"><pre>                <span class="nv">cell = </span><span class="nx">$</span><span class="p">(</span><span class="s2">&quot;c&quot;</span><span class="o">+</span><span class="nx">y</span><span class="o">+</span><span class="s1">&#39;_&#39;</span><span class="o">+</span><span class="nx">x</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="nx">x</span> <span class="o">==</span> <span class="mi">0</span>
+                    <span class="nv">cell.className = </span><span class="s2">&quot;#{node_css_class} #{state} #{size} #{node_css_first}&quot;</span>
+                <span class="k">else</span>
+                    <span class="nv">cell.className = </span><span class="s2">&quot;#{node_css_class} #{state} #{size}&quot;</span>
+            <span class="k">when</span> <span class="s2">&quot;canvas&quot;</span></pre></div>             </td>           </tr>                               <tr id="section-22">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-22">&#182;</a>               </div>               <p>Uses HTML5's canvas object to write directly to an image obj.
+It is SLOW as crap in this implementation. Turn real-time
+view to off and it will be faster but NO way as fast as
+raw div access in 'html' mode.</p>             </td>             <td class="code">               <div class="highlight"><pre>                <span class="nv">pixel_index = </span><span class="p">(</span><span class="nx">y</span> <span class="o">*</span> <span class="nx">@_cols</span> <span class="o">+</span> <span class="nx">x</span><span class="p">)</span> <span class="o">*</span> <span class="mi">4</span>
+
+                <span class="k">if</span> <span class="nx">state</span> <span class="o">==</span> <span class="s2">&quot;on&quot;</span>
+                    <span class="nx">@_pixels</span><span class="p">[</span><span class="nx">pixel_index</span>  <span class="p">]</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1">#red channel</span>
+                    <span class="nx">@_pixels</span><span class="p">[</span><span class="nx">pixel_index</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1">#green channel</span>
+                    <span class="nx">@_pixels</span><span class="p">[</span><span class="nx">pixel_index</span><span class="o">+</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1">#blue channel</span>
+                    <span class="nx">@_pixels</span><span class="p">[</span><span class="nx">pixel_index</span><span class="o">+</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">255</span> <span class="c1"># alpha</span>
+                <span class="k">else</span>
+                    <span class="nx">@_pixels</span><span class="p">[</span><span class="nx">pixel_index</span>  <span class="p">]</span> <span class="o">=</span> <span class="mi">255</span> <span class="c1">#red channel</span>
+                    <span class="nx">@_pixels</span><span class="p">[</span><span class="nx">pixel_index</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">255</span> <span class="c1">#green channel</span>
+                    <span class="nx">@_pixels</span><span class="p">[</span><span class="nx">pixel_index</span><span class="o">+</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">255</span> <span class="c1">#blue channel</span>
+                    <span class="nx">@_pixels</span><span class="p">[</span><span class="nx">pixel_index</span><span class="o">+</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">255</span> <span class="c1"># alpha</span></pre></div>             </td>           </tr>                               <tr id="section-23">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-23">&#182;</a>               </div>               <p>Write the image data out to the canvas context.</p>             </td>             <td class="code">               <div class="highlight"><pre>                <span class="nx">@_context</span><span class="p">.</span><span class="nx">putImageData</span> <span class="nx">@_image</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span></pre></div>             </td>           </tr>                               <tr id="section-24">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-24">&#182;</a>               </div>               <p>Easy toggle to flip state.</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="nv">toggle: </span><span class="nf">() -&gt;</span>
+        <span class="k">if</span> <span class="nx">@_is_running</span>
+            <span class="nx">$</span><span class="p">(</span><span class="s2">&quot;toggle&quot;</span><span class="p">).</span><span class="nv">innerHTML = </span><span class="s2">&quot;Start&quot;</span>
+            <span class="nx">clearInterval</span><span class="p">(</span><span class="nx">@_timer</span><span class="p">)</span>
+            <span class="vi">@_is_running = </span><span class="o">!</span><span class="nx">@_is_running</span>
+
+        <span class="k">else</span>
+            <span class="nx">$</span><span class="p">(</span><span class="s2">&quot;toggle&quot;</span><span class="p">).</span><span class="nv">innerHTML = </span><span class="s2">&quot;Stop&quot;</span>
+            <span class="vi">@_timer = </span><span class="nx">setInterval</span><span class="p">(</span> <span class="p">(</span><span class="o">=&gt;</span> <span class="nx">@calculate_world</span><span class="p">()</span> <span class="p">),</span> <span class="nx">@_speed</span><span class="p">)</span>
+            <span class="vi">@_is_running = </span><span class="o">!</span><span class="nx">@_is_running</span>
+    </pre></div>             </td>           </tr>                               <tr id="section-25">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-25">&#182;</a>               </div>               <p>Reset all states.</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="nv">reset: </span><span class="nf">() -&gt;</span>
+        <span class="vi">@_is_running = </span><span class="kc">no</span>
+        <span class="nx">@_worlds_tested</span><span class="o">++</span>
+        <span class="nx">@clearWorld</span><span class="p">()</span>
+        <span class="vi">@_interval = </span><span class="mi">0</span>
+        <span class="nx">@_populations</span><span class="p">.</span><span class="nx">clear</span><span class="p">()</span>
+        <span class="nx">@drawCurrentWorld</span><span class="p">()</span></pre></div>             </td>           </tr>                               <tr id="section-26">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-26">&#182;</a>               </div>               <p>For when clicking on the random button.</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="nv">randomSetup: </span><span class="nf">() -&gt;</span>
+        <span class="vi">@_is_running = </span><span class="kc">no</span>
+        <span class="nx">@_worlds_tested</span><span class="o">++</span>
+        <span class="nx">@clearWorld</span><span class="p">()</span>
+        <span class="vi">@_interval = </span><span class="mi">0</span>
+        <span class="nx">@_populations</span><span class="p">.</span><span class="nx">clear</span><span class="p">()</span>
+        <span class="nx">@doPattern</span><span class="p">()</span> <span class="k">if</span> <span class="o">!</span> <span class="nx">@_manual</span>
+        <span class="nx">@drawCurrentWorld</span><span class="p">()</span></pre></div>             </td>           </tr>                               <tr id="section-27">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-27">&#182;</a>               </div>               <p>Predefined pattern for testing.</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="nv">dataSetup: </span><span class="nf">() -&gt;</span>
+        <span class="nx">@doPattern</span><span class="p">(</span><span class="s2">&quot;data&quot;</span><span class="p">)</span>
+        <span class="nx">@drawCurrentWorld</span><span class="p">()</span></pre></div>             </td>           </tr>                               <tr id="section-28">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-28">&#182;</a>               </div>               <p>Toggle a particular cell, used when manually clicking.</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="nv">toggleCell: </span><span class="nf">(y, x) -&gt;</span>
+        <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">y</span><span class="p">][</span><span class="nx">x</span><span class="p">]</span> <span class="o">=</span> <span class="k">if</span> <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">y</span><span class="p">][</span><span class="nx">x</span><span class="p">]</span> <span class="o">is</span> <span class="mi">0</span> <span class="k">then</span> <span class="mi">1</span> <span class="k">else</span> <span class="mi">0</span>
+
+        <span class="k">if</span> <span class="nx">@_world_table</span><span class="p">[</span><span class="nx">y</span><span class="p">][</span><span class="nx">x</span><span class="p">]</span> <span class="o">is</span> <span class="mi">1</span>
+            <span class="nx">@drawNode</span><span class="p">(</span><span class="nx">y</span><span class="p">,</span> <span class="nx">x</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">)</span>
+        <span class="k">else</span>
+            <span class="nx">@drawNode</span><span class="p">(</span><span class="nx">y</span><span class="p">,</span> <span class="nx">x</span><span class="p">,</span> <span class="s2">&quot;off&quot;</span><span class="p">)</span>
+    </pre></div>             </td>           </tr>                               <tr id="section-29">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-29">&#182;</a>               </div>               <p>Start the generation when app is loaded and ready.</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="nv">autoStart: </span><span class="nf">() -&gt;</span>
+        <span class="nx">@setupWorld</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="o">!</span><span class="nx">@_manual</span>
+            <span class="nx">@doPattern</span><span class="p">()</span>
+            <span class="nx">@toggle</span><span class="p">()</span>
+
+        <span class="nx">@drawCurrentWorld</span><span class="p">()</span>
+    </pre></div>             </td>           </tr>                               <tr id="section-30">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-30">&#182;</a>               </div>               <p>Step the generation by 1.</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="nv">stepApp: </span><span class="nf">() -&gt;</span>
+        <span class="k">if</span> <span class="o">!</span><span class="nx">@_realtime_view</span>
+            <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">&quot;Realtime view was not requested but stepping requires it. App is overriding the setting to yes.&quot;</span><span class="p">)</span>
+            <span class="vi">@_realtime_view = </span><span class="kc">yes</span>
+
+        <span class="nx">@calculate_world</span><span class="p">()</span> <span class="c1"># if !@_timer?</span></pre></div>             </td>           </tr>                               <tr id="section-31">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-31">&#182;</a>               </div>               <p>The magic starts here</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="nv">init = </span><span class="o">-&gt;</span>
+    <span class="nv">cgolApp = </span><span class="k">new</span> <span class="nx">CgolBasic</span><span class="p">()</span>
+    <span class="nx">cgolApp</span><span class="p">.</span><span class="nx">autoStart</span><span class="p">()</span>
+    
+    <span class="nb">window</span><span class="p">.</span><span class="nv">cgolApp = </span><span class="nx">cgolApp</span>
+
+    <span class="nx">$</span><span class="p">(</span><span class="s2">&quot;simulation&quot;</span><span class="p">).</span><span class="nv">onclick = </span><span class="nf">() -&gt;</span>
+        <span class="nv">clicked_html = </span><span class="k">if</span> <span class="nx">e</span><span class="o">?</span> <span class="k">then</span> <span class="nx">e</span><span class="p">.</span><span class="nx">target</span> <span class="k">else</span> <span class="nb">window</span><span class="p">.</span><span class="nx">event</span><span class="p">.</span><span class="nx">srcElement</span>
+        <span class="k">if</span> <span class="nx">clicked_html</span><span class="p">.</span><span class="nx">nodeName</span> <span class="o">is</span> <span class="s2">&quot;DIV&quot;</span>
+            <span class="p">[</span><span class="nx">y</span><span class="p">,</span><span class="nx">x</span><span class="p">]</span> <span class="o">=</span> <span class="nx">clicked_html</span><span class="p">.</span><span class="nx">id</span><span class="p">.</span><span class="nx">substr</span><span class="p">(</span><span class="mi">1</span><span class="p">).</span><span class="nx">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)</span>
+            <span class="nx">cgolApp</span><span class="p">.</span><span class="nx">toggleCell</span><span class="p">(</span><span class="nx">y</span><span class="p">,</span><span class="nx">x</span><span class="p">)</span></pre></div>             </td>           </tr>                               <tr id="section-32">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-32">&#182;</a>               </div>               <p>On browser load do the following.</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="nb">window</span><span class="p">.</span><span class="nv">onload = </span><span class="nf">() -&gt;</span> 
+    <span class="nx">init</span><span class="p">()</span></pre></div>             </td>           </tr>                               <tr id="section-33">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-33">&#182;</a>               </div>               <h2>Buttons</h2>
+
+<p>Here are some browser based helper exports for button interactions.</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="nb">window</span><span class="p">.</span><span class="nv">toggleApp = </span><span class="o">-&gt;</span>
+    <span class="nx">cgolApp</span><span class="p">.</span><span class="nx">toggle</span><span class="p">()</span>
+
+<span class="nb">window</span><span class="p">.</span><span class="nv">stepApp = </span><span class="o">-&gt;</span>
+    <span class="nx">cgolApp</span><span class="p">.</span><span class="nx">stepApp</span><span class="p">()</span>
+
+<span class="nb">window</span><span class="p">.</span><span class="nv">randomSetup = </span><span class="o">-&gt;</span>
+    <span class="nx">cgolApp</span><span class="p">.</span><span class="nx">randomSetup</span><span class="p">()</span>
+
+<span class="nb">window</span><span class="p">.</span><span class="nv">dataSetup = </span><span class="o">-&gt;</span>
+    <span class="nx">cgolApp</span><span class="p">.</span><span class="nx">dataSetup</span><span class="p">()</span>
+
+<span class="nb">window</span><span class="p">.</span><span class="nv">resetApp = </span><span class="o">-&gt;</span>
+    <span class="nx">cgolApp</span><span class="p">.</span><span class="nx">reset</span><span class="p">()</span>
+
+</pre></div>             </td>           </tr>                </tbody>     </table>   </div> </body> </html> 
